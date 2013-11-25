@@ -38,13 +38,15 @@ f_usage(){
 	echo "Usage:"
 	echo
 	echo "Destination host (local):"
-	echo "    zpull -t lxc|kvm -s HOST -n VM"
-	echo "       -t|--virt lxc|kvm"
-	echo "       -s|--source HOST"
-	echo "       -n|--vm|--name VM"
+	echo "    zpull -t lxc|kvm -s HOST -n VM [--up]"
+	echo
+	echo "       -t|--virt lxc|kvm           virtualization type: LXC or KVM"
+	echo "       -s|--source HOST            source host to pull VM from"
+	echo "       -n|--vm|--name VM           VM name"
+	echo "       --up                        do not shutdown remote VM"
 	echo
 	echo "Source host (remote):"
-	echo "    zpull --check-kvm-state VM"
+	echo "    zpull --check-kvm-state VM     check if KVM up or down"
 	echo
 }
 
@@ -81,6 +83,11 @@ while [ "$#" -gt "0" ]; do
 		vm=$PARAM
 		f_check_kvm_state 
 		shift 2
+	;;
+
+	--up)
+		NO_VM_SHUTDOWN=1
+		shift 1
 	;;
 
 	-h|--help|*)
@@ -124,6 +131,7 @@ fi
 
 # m0
 echo "############# Phase0: full #############"
+echo
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m0
 $c_ssh "zfs send -R -P tank/${virt_type}/${vm}@m0 | mbuffer -q -v 0 -s 128k -m 1G" | mbuffer -s 128k -m 1G | zfs recv -Fvu tank/${virt_type}/${vm}
 echo
@@ -134,25 +142,30 @@ zfs set readonly=on tank/${virt_type}/${vm}
 
 # m1
 echo "############# Phase1: First increment #############"
+echo
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m1
 $c_ssh "zfs send -R -P -i tank/${virt_type}/${vm}@m0 tank/${virt_type}/${vm}@m1 | $c_mbuffer_send" | $c_mbuffer_recv | zfs recv -vu tank/${virt_type}/${vm}
 echo
 echo
 
-echo "############# Shutting down VM #############"
 ######## STOP ##########
-if [ $virt_type = kvm ];
+if [ x$NO_VM_SHUTDOWN = "x" ];
 	then
-		virsh shutdown ${vm}
-		$c_ssh /root/bin/zpull.sh --check-kvm-state ${vm}
+		echo "############# Shutting down VM #############"
+		if [ $virt_type = kvm ];
+			then
+				$c_ssh virsh shutdown ${vm}
+				$c_ssh /root/bin/zpull.sh --check-kvm-state ${vm}
+			else
+				$c_ssh lxc-stop -n ${vm}
+		fi
 	else
-		$c_ssh lxc-stop -n ${vm}
+		echo "############# *** NOT *** shutting down VM #############"
 fi
 ######## STOP ##########
-echo
-echo
 
 echo "############# Phase2: Second increment #############"
+echo
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m2
 $c_ssh zfs send -R -P -i tank/${virt_type}/${vm}@m1 tank/${virt_type}/${vm}@m2 | zfs recv -vu tank/${virt_type}/${vm}
 echo
@@ -167,7 +180,6 @@ if [ $virt_type = lxc ];
     then
        zfs mount tank/lxc/${vm}
 fi
-echo
 
 #echo "Do not forget to change readonly property!"
 #echo "zfs inherit readonly tank/${virt_type}/${vm}"
