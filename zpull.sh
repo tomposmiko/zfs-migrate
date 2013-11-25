@@ -12,22 +12,23 @@ f_check_kvm_state() {
 # usage: ssh $s_host "$VAR_f_kvm_check_state; f_kvm_check_state"
 
 	SHUTDOWN_MAXWAIT=600
+	echo "Waiting for $SHUTDOWN_MAXWAIT seconds."
 	for sec in `seq $SHUTDOWN_MAXWAIT`;do
-		echo -n $sec
+		echo -n "$sec "
 
-		if `virsh domstate ${vm}|head -1|grep -q "shut off"`;
+		if `virsh domstate ${vm} | head -1 | grep -q "shut off"`;
 			then
-				echo "${vm}: shut down"
-				exit 1
+				echo "${vm}: successfully shut down"
+				exit 0
 			else
 				sleep 1
 		fi
 
-		echo "${vm}: cannot shut down"
 	done
+	echo "${vm}: wasn't able to shut down"
 }
 # make available to subshells and child processes
-export -f f_kvm_check_state
+export -f f_check_kvm_state
 
 
 f_usage(){
@@ -70,7 +71,9 @@ while [ "$#" -gt "0" ]; do
 
 	--check-kvm-state)
 		PARAM=$2
-		f_check_kvm_state $PARAM
+		f_check_switch_param $PARAM
+		vm=$PARAM
+		f_check_kvm_state 
 		shift 2
 	;;
 
