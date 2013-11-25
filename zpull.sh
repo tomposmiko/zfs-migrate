@@ -1,6 +1,6 @@
 #!/bin/bash
 
-check_switch_param(){
+f_check_switch_param(){
 	if echo x"$1" |grep -q ^x-;then
 		echo "Missing argument!"
 		exit 1
@@ -8,11 +8,11 @@ check_switch_param(){
 }
 
 
-VAR_f_kvm_check_state='f_kvm_check_state() {
+f_check_kvm_state() {
 # usage: ssh $s_host "$VAR_f_kvm_check_state; f_kvm_check_state"
 
 	SHUTDOWN_MAXWAIT=600
-	for sec in {1..$SHUTDOWN_MAXWAIT};do
+	for sec in `seq $SHUTDOWN_MAXWAIT`;do
 		echo -n $sec
 
 		if `virsh domstate ${vm}|head -1|grep -q "shut off"`;
@@ -23,21 +23,21 @@ VAR_f_kvm_check_state='f_kvm_check_state() {
 				sleep 1
 		fi
 
-		echo "${vm}: cannot be shut down"
+		echo "${vm}: cannot shut down"
 	done
-}'
-# make this function available on this host
-eval $VAR_f_kvm_check_state
+}
 # make available to subshells and child processes
 export -f f_kvm_check_state
 
 
-usage(){
+f_usage(){
 	echo "Usage:"
 	echo "zpull -t lxc|kvm -s HOST -n VM"
 	echo "   -t|--virt lxc|kvm"
 	echo "   -s|--source HOST"
 	echo "   -n|--vm|--name VM"
+	echo ""
+	echo "zpull --check-kvm-state VM"
 	echo
 }
 
@@ -48,25 +48,34 @@ let $# || { usage; exit 1; }
 while [ "$#" -gt "0" ]; do
   case "$1" in
 	-t|--virt)
-		$PARAM=$2
-		check_switch_param $PARAM
+		PARAM=$2
+		f_check_switch_param $PARAM
 		virt_type="$PARAM"
 		shift 2
 	;;
+
 	-s|--source)
-		$PARAM=$2
-		check_switch_param $PARAM
+		PARAM=$2
+		f_check_switch_param $PARAM
 		s_host=$PARAM
 		shift 2
 	;;
+
 	-n|--vm|--name)
-		$PARAM=$2
-		check_switch_param $PARAM
+		PARAM=$2
+		f_check_switch_param $PARAM
 		vm=$PARAM
 		shift 2
 	;;
+
+	--check-kvm-state)
+		PARAM=$2
+		f_check_kvm_state $PARAM
+		shift 2
+	;;
+
 	-h|--help|*)
-		usage
+		f_usage
 	;;
   esac
 done
@@ -85,36 +94,42 @@ if ! mbuffer -h >/dev/null 2>&1 ;then
 	exit 1
 fi
 
-cmd_ssh="ssh -c blowfish $s_host"
+c_ssh="ssh -c blowfish $s_host"
 c_mbuffer_send="mbuffer -q -v 0 -s 128k -m 1G"
 c_mbuffer_recv="mbuffer -s 128k -m 1G"
 
 
 # check for zfs dataset
-if ! $cmd_ssh "zfs list tank/${virt_type}/${vm} >/dev/null 2>&1";
+if ! $c_ssh "zfs list tank/${virt_type}/${vm} >/dev/null 2>&1";
 	then
 		echo "No dataset on source server: tank/${virt_type}/${vm} !"
 		exit 1
 fi
 
 if [ $virt_type = kvm ]; then
-	$cmd_ssh "virsh domstate $vm >/dev/null 2>&1" || { echo "No such VM: ${vm}"; exit 1; }
+	$c_ssh "virsh domstate $vm >/dev/null 2>&1" || { echo "No such VM: ${vm}"; exit 1; }
 fi
 
 
 
-$cmd_ssh zfs snap -r tank/${virt_type}/${vm}@m0
-$cmd_ssh "zfs send -R -P tank/${virt_type}/${vm}@m0 | mbuffer -q -v 0 -s 128k -m 1G" | mbuffer -s 128k -m 1G | zfs recv -Fvu tank/${virt_type}/${vm}
+$c_ssh zfs snap -r tank/${virt_type}/${vm}@m0
+$c_ssh "zfs send -R -P tank/${virt_type}/${vm}@m0 | mbuffer -q -v 0 -s 128k -m 1G" | mbuffer -s 128k -m 1G | zfs recv -Fvu tank/${virt_type}/${vm}
 zfs set readonly=on tank/${vm}
-$cmd_ssh zfs snap -r tank/${vm}@m1
-$cmd_ssh "zfs send -R -P -i tank/${virt_type}/${vm}@m0 tank/${vm}@m1 | $c_mbuffer_send" | $c_mbuffer_recv | zfs recv -vu tank/${virt_type}/${vm}
+$c_ssh zfs snap -r tank/${vm}@m1
+$c_ssh "zfs send -R -P -i tank/${virt_type}/${vm}@m0 tank/${vm}@m1 | $c_mbuffer_send" | $c_mbuffer_recv | zfs recv -vu tank/${virt_type}/${vm}
 
 ######## STOP ##########
-$cmd_ssh "$VAR_f_kvm_check_state; f_kvm_check_state"
+if [ $virt_type = kvm ];
+	then
+		virsh shutdown ${vm}
+		$c_ssh /root/bin/zpull.sh --check-kvm-state ${vm}
+	else
+		$c_ssh lxc-stop -n ${vm}
+fi
 ######## STOP ##########
 
-$cmd_ssh zfs snap -r tank/${vm}@m2
-$cmd_ssh zfs send -R -P -i tank/${vm}@m1 tank/${vm}@m2 | zfs recv -vu tank/${vm}
+$c_ssh zfs snap -r tank/${vm}@m2
+$c_ssh zfs send -R -P -i tank/${vm}@m1 tank/${vm}@m2 | zfs recv -vu tank/${vm}
 
 # remove readonly property
 #zfs inherit readonly tank/${virt_type}/${vm}
