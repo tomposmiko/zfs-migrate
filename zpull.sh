@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# TODO
+# check for non-availability of existing VMs (virsh domstate |& lxc-info(?) or /etc/lxc/auto/${vm}.conf)
+# 
+
 f_check_switch_param(){
 	if echo x"$1" |grep -q ^x-;then
 		echo "Missing argument!"
@@ -86,7 +90,7 @@ while [ "$#" -gt "0" ]; do
   esac
 done
 
-
+# check for virt type
 if [ x$virt_type != x"lxc" -a x$virt_type != x"kvm" ];
 	then
 		echo "Invalid or no virtualization type: "$virt_type" !"
@@ -112,18 +116,30 @@ if ! $c_ssh "zfs list tank/${virt_type}/${vm} >/dev/null 2>&1";
 		exit 1
 fi
 
+# check for kvm availability
 if [ $virt_type = kvm ]; then
 	$c_ssh "virsh domstate $vm >/dev/null 2>&1" || { echo "No such VM: ${vm}"; exit 1; }
 fi
 
 
-
+# m0
+echo "############# Phase0: full #############"
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m0
 $c_ssh "zfs send -R -P tank/${virt_type}/${vm}@m0 | mbuffer -q -v 0 -s 128k -m 1G" | mbuffer -s 128k -m 1G | zfs recv -Fvu tank/${virt_type}/${vm}
+echo
+echo
+
+# without ro flag increment send won't work
 zfs set readonly=on tank/${virt_type}/${vm}
+
+# m1
+echo "############# Phase1: First increment #############"
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m1
 $c_ssh "zfs send -R -P -i tank/${virt_type}/${vm}@m0 tank/${virt_type}/${vm}@m1 | $c_mbuffer_send" | $c_mbuffer_recv | zfs recv -vu tank/${virt_type}/${vm}
+echo
+echo
 
+echo "############# Shutting down VM #############"
 ######## STOP ##########
 if [ $virt_type = kvm ];
 	then
@@ -133,10 +149,16 @@ if [ $virt_type = kvm ];
 		$c_ssh lxc-stop -n ${vm}
 fi
 ######## STOP ##########
+echo
+echo
 
+echo "############# Phase2: Second increment #############"
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m2
 $c_ssh zfs send -R -P -i tank/${virt_type}/${vm}@m1 tank/${virt_type}/${vm}@m2 | zfs recv -vu tank/${virt_type}/${vm}
+echo
+echo
 
+echo "############# Finalizing #############"
 # remove readonly property
 zfs inherit readonly tank/${virt_type}/${vm}
 
@@ -145,7 +167,7 @@ if [ $virt_type = lxc ];
     then
        zfs mount tank/lxc/${vm}
 fi
+echo
 
-
-echo "Do not forget to change readonly property!"
-echo "zfs inherit readonly tank/${virt_type}/${vm}"
+#echo "Do not forget to change readonly property!"
+#echo "zfs inherit readonly tank/${virt_type}/${vm}"
