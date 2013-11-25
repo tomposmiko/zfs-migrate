@@ -8,7 +8,8 @@ check_switch_param(){
 }
 
 
-f_kvm_check-state() {
+VAR_f_kvm_check_state='f_kvm_check_state() {
+# usage: ssh $s_host "$VAR_f_kvm_check_state; f_kvm_check_state"
 
 	SHUTDOWN_MAXWAIT=600
 	for sec in {1..$SHUTDOWN_MAXWAIT};do
@@ -24,7 +25,12 @@ f_kvm_check-state() {
 
 		echo "${vm}: cannot be shut down"
 	done
-}
+}'
+# make this function available on this host
+eval $VAR_f_kvm_check_state
+# make available to subshells and child processes
+export -f f_kvm_check_state
+
 
 usage(){
 	echo "Usage:"
@@ -104,14 +110,16 @@ $cmd_ssh zfs snap -r tank/${vm}@m1
 $cmd_ssh "zfs send -R -P -i tank/${virt_type}/${vm}@m0 tank/${vm}@m1 | $c_mbuffer_send" | $c_mbuffer_recv | zfs recv -vu tank/${virt_type}/${vm}
 
 ######## STOP ##########
-
+$cmd_ssh "$VAR_f_kvm_check_state; f_kvm_check_state"
 ######## STOP ##########
 
-#$cmd_ssh zfs snap -r tank/${vm}@m2
-#$cmd_ssh zfs send -R -P -i tank/${vm}@m1 tank/${vm}@m2 | zfs recv -vu tank/${vm}
+$cmd_ssh zfs snap -r tank/${vm}@m2
+$cmd_ssh zfs send -R -P -i tank/${vm}@m1 tank/${vm}@m2 | zfs recv -vu tank/${vm}
 
+# remove readonly property
 #zfs inherit readonly tank/${virt_type}/${vm}
 #
+# mount dataset if virt type is lxc
 #if [ $virt_type = lxc ];
 #    then
 #       zfs mount tank/lxc/${vm}
@@ -120,4 +128,3 @@ $cmd_ssh "zfs send -R -P -i tank/${virt_type}/${vm}@m0 tank/${vm}@m1 | $c_mbuffe
 
 echo "Do not forget to change readonly property!"
 echo "zfs inherit readonly tank/${virt_type}/${vm}"
-"e.sh" 122L, 2410C                         
