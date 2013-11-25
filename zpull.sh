@@ -9,8 +9,6 @@ f_check_switch_param(){
 
 
 f_check_kvm_state() {
-# usage: ssh $s_host "$VAR_f_kvm_check_state; f_kvm_check_state"
-
 	SHUTDOWN_MAXWAIT=600
 	echo "Waiting for $SHUTDOWN_MAXWAIT seconds."
 	for sec in `seq $SHUTDOWN_MAXWAIT`;do
@@ -26,6 +24,7 @@ f_check_kvm_state() {
 
 	done
 	echo "${vm}: wasn't able to shut down"
+	exit 1
 }
 # make available to subshells and child processes
 export -f f_check_kvm_state
@@ -33,18 +32,21 @@ export -f f_check_kvm_state
 
 f_usage(){
 	echo "Usage:"
-	echo "zpull -t lxc|kvm -s HOST -n VM"
-	echo "   -t|--virt lxc|kvm"
-	echo "   -s|--source HOST"
-	echo "   -n|--vm|--name VM"
-	echo ""
-	echo "zpull --check-kvm-state VM"
+	echo
+	echo "Destination host (local):"
+	echo "    zpull -t lxc|kvm -s HOST -n VM"
+	echo "       -t|--virt lxc|kvm"
+	echo "       -s|--source HOST"
+	echo "       -n|--vm|--name VM"
+	echo
+	echo "Source host (remote):"
+	echo "    zpull --check-kvm-state VM"
 	echo
 }
 
 
 # Exit if no arguments!
-let $# || { usage; exit 1; }
+let $# || { f_usage; exit 1; }
 
 while [ "$#" -gt "0" ]; do
   case "$1" in
@@ -79,6 +81,7 @@ while [ "$#" -gt "0" ]; do
 
 	-h|--help|*)
 		f_usage
+		exit 0
 	;;
   esac
 done
@@ -117,9 +120,9 @@ fi
 
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m0
 $c_ssh "zfs send -R -P tank/${virt_type}/${vm}@m0 | mbuffer -q -v 0 -s 128k -m 1G" | mbuffer -s 128k -m 1G | zfs recv -Fvu tank/${virt_type}/${vm}
-zfs set readonly=on tank/${vm}
-$c_ssh zfs snap -r tank/${vm}@m1
-$c_ssh "zfs send -R -P -i tank/${virt_type}/${vm}@m0 tank/${vm}@m1 | $c_mbuffer_send" | $c_mbuffer_recv | zfs recv -vu tank/${virt_type}/${vm}
+zfs set readonly=on tank/${virt_type}/${vm}
+$c_ssh zfs snap -r tank/${virt_type}/${vm}@m1
+$c_ssh "zfs send -R -P -i tank/${virt_type}/${vm}@m0 tank/${virt_type}/${vm}@m1 | $c_mbuffer_send" | $c_mbuffer_recv | zfs recv -vu tank/${virt_type}/${vm}
 
 ######## STOP ##########
 if [ $virt_type = kvm ];
@@ -131,17 +134,17 @@ if [ $virt_type = kvm ];
 fi
 ######## STOP ##########
 
-$c_ssh zfs snap -r tank/${vm}@m2
-$c_ssh zfs send -R -P -i tank/${vm}@m1 tank/${vm}@m2 | zfs recv -vu tank/${vm}
+$c_ssh zfs snap -r tank/${virt_type}/${vm}@m2
+$c_ssh zfs send -R -P -i tank/${virt_type}/${vm}@m1 tank/${virt_type}/${vm}@m2 | zfs recv -vu tank/${virt_type}/${vm}
 
 # remove readonly property
-#zfs inherit readonly tank/${virt_type}/${vm}
-#
+zfs inherit readonly tank/${virt_type}/${vm}
+
 # mount dataset if virt type is lxc
-#if [ $virt_type = lxc ];
-#    then
-#       zfs mount tank/lxc/${vm}
-#fi
+if [ $virt_type = lxc ];
+    then
+       zfs mount tank/lxc/${vm}
+fi
 
 
 echo "Do not forget to change readonly property!"
