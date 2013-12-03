@@ -116,10 +116,17 @@ c_mbuffer_send="mbuffer -q -v 0 -s 128k -m 1G"
 c_mbuffer_recv="mbuffer -s 128k -m 1G"
 
 
-# check for zfs dataset
+# check for remote zfs dataset
 if ! $c_ssh "zfs list tank/${virt_type}/${vm} >/dev/null 2>&1";
 	then
 		echo "No dataset on source server: tank/${virt_type}/${vm} !"
+		exit 1
+fi
+
+# check for local zfs dataset
+if zfs list tank/${virt_type}/${vm} >/dev/null 2>&1;
+	then
+		echo "Dataset exists on destionation server: tank/${virt_type}/${vm}"
 		exit 1
 fi
 
@@ -133,7 +140,7 @@ fi
 echo "############# Phase0: full #############"
 echo
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m0
-$c_ssh "zfs send -R -P tank/${virt_type}/${vm}@m0 | mbuffer -q -v 0 -s 128k -m 1G" | mbuffer -s 128k -m 1G | zfs recv -Fvu tank/${virt_type}/${vm}
+$c_ssh "zfs send -R -P tank/${virt_type}/${vm}@m0" | zfs recv -Fvu tank/${virt_type}/${vm}
 echo
 echo
 
@@ -144,7 +151,7 @@ zfs set readonly=on tank/${virt_type}/${vm}
 echo "############# Phase1: First increment #############"
 echo
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m1
-$c_ssh "zfs send -R -P -i tank/${virt_type}/${vm}@m0 tank/${virt_type}/${vm}@m1 | $c_mbuffer_send" | $c_mbuffer_recv | zfs recv -vu tank/${virt_type}/${vm}
+$c_ssh "zfs send -R -P -i tank/${virt_type}/${vm}@m0 tank/${virt_type}/${vm}@m1" | zfs recv -vu tank/${virt_type}/${vm}
 echo
 echo
 
