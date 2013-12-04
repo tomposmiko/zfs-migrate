@@ -38,15 +38,15 @@ f_usage(){
 	echo "Usage:"
 	echo
 	echo "Destination host (local):"
-	echo "    zpull -t lxc|kvm -s HOST -n VM [--up]"
+	echo "	zpull -t lxc|kvm -s HOST -n VM [--up]"
 	echo
-	echo "       -t|--virt lxc|kvm           virtualization type: LXC or KVM"
-	echo "       -s|--source HOST            source host to pull VM from"
-	echo "       -n|--vm|--name VM           VM name"
-	echo "       --up                        do not shutdown remote VM"
+	echo "	   -t|--virt lxc|kvm		   virtualization type: LXC or KVM"
+	echo "	   -s|--source HOST			source host to pull VM from"
+	echo "	   -n|--vm|--name VM		   VM name"
+	echo "	   --start source|dest		 keep running source VM or start on destination (default: leave both VM stopped)"
 	echo
 	echo "Source host (remote):"
-	echo "    zpull --check-kvm-state VM     check if KVM up or down"
+	echo "	zpull --check-kvm-state VM	 check if KVM up or down"
 	echo
 }
 
@@ -85,9 +85,11 @@ while [ "$#" -gt "0" ]; do
 		shift 2
 	;;
 
-	--up)
-		NO_VM_SHUTDOWN=1
-		shift 1
+	--start)
+		PARAM=$2
+		f_check_switch_param $PARAM
+		VM_START=$PARAM
+		shift 2
 	;;
 
 	-h|--help|*)
@@ -111,7 +113,7 @@ if ! mbuffer -h >/dev/null 2>&1 ;then
 	exit 1
 fi
 
-c_ssh="ssh -c blowfish $s_host"
+c_ssh="ssh -c arcfour $s_host"
 c_mbuffer_send="mbuffer -q -v 0 -s 128k -m 1G"
 c_mbuffer_recv="mbuffer -s 128k -m 1G"
 
@@ -126,7 +128,7 @@ fi
 # check for local zfs dataset
 if zfs list tank/${virt_type}/${vm} >/dev/null 2>&1;
 	then
-		echo "Dataset exists on destionation server: tank/${virt_type}/${vm}"
+		echo "Dataset exists on destination server: tank/${virt_type}/${vm}"
 		exit 1
 fi
 
@@ -156,7 +158,7 @@ echo
 echo
 
 ######## STOP ##########
-if [ x$NO_VM_SHUTDOWN = "x" ];
+if [ x$VM_START = "xdest" -o  x$VM_START = "x" ];
 	then
 		echo "############# Shutting down VM #############"
 		if [ $virt_type = kvm ];
@@ -167,7 +169,7 @@ if [ x$NO_VM_SHUTDOWN = "x" ];
 				$c_ssh lxc-stop -n ${vm}
 		fi
 	else
-		echo "############# *** NOT *** shutting down VM #############"
+		echo "############# *** NOT *** shutting down source VM #############"
 fi
 ######## STOP ##########
 
@@ -184,9 +186,22 @@ zfs inherit readonly tank/${virt_type}/${vm}
 
 # mount dataset if virt type is lxc
 if [ $virt_type = lxc ];
-    then
-       zfs mount tank/lxc/${vm}
+	then
+	   zfs mount tank/lxc/${vm}
 fi
+echo
+echo
 
-#echo "Do not forget to change readonly property!"
-#echo "zfs inherit readonly tank/${virt_type}/${vm}"
+# start destination VM
+if [ x$VM_START = "xdest" ];
+	then
+		echo "############# Starting destination VM #############"
+		if [ $virt_type = kvm ];
+			then
+				virsh start ${vm}
+			else
+				lxc-start -d -n ${vm}
+		fi
+	else
+		echo "############# *** NOT *** starting destination VM #############"
+fi
