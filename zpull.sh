@@ -199,8 +199,12 @@ if [ x$VM_START = "xdest" ];
 		if [ $virt_type = kvm ];
 			then
 				virsh start ${vm}
+				virsh autostart ${vm}
+				$c_ssh virsh autostart --disable ${vm}
 			else
 				lxc-start -d -n ${vm}
+				ln -s /tank/${virt_type}/${vm}/config /etc/lxc/auto/${vm}.conf
+				$c_ssh rm -f /etc/lxc/auto/${vm}.conf
 		fi
 	else
 		echo "############# *** NOT *** starting destination VM #############"
