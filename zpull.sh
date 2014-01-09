@@ -141,8 +141,9 @@ fi
 # m0
 echo "############# Phase0: full #############"
 echo
+$c_ssh zfs destroy -r tank/${virt_type}/${vm}@m0%m2
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m0
-$c_ssh "zfs send -R -P tank/${virt_type}/${vm}@m0" | zfs recv -Fvu tank/${virt_type}/${vm}
+$c_ssh "zfs send -R -P -v tank/${virt_type}/${vm}@m0" | zfs recv -Fvu tank/${virt_type}/${vm}
 echo
 echo
 
@@ -203,8 +204,9 @@ if [ x$VM_START = "xdest" ];
 				$c_ssh virsh autostart --disable ${vm}
 			else
 				lxc-start -d -n ${vm}
-				ln -s /tank/${virt_type}/${vm}/config /etc/lxc/auto/${vm}.conf
-				$c_ssh rm -f /etc/lxc/auto/${vm}.conf
+				#ln -s /tank/${virt_type}/${vm}/config /etc/lxc/auto/${vm}.conf
+				sed -i 's@#lxc.start.auto@lxc.start.auto@' /tank/${virt_type}/${vm}/config
+				$c_ssh sed -i 's@lxc.start.auto@#lxc.start.auto@' /tank/${virt_type}/${vm}/config
 		fi
 	else
 		echo "############# *** NOT *** starting destination VM #############"
