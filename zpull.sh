@@ -143,7 +143,7 @@ echo "############# Phase0: full #############"
 echo
 $c_ssh zfs destroy -r tank/${virt_type}/${vm}@m0%m2
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m0
-$c_ssh "zfs send -R -P -v tank/${virt_type}/${vm}@m0" | zfs recv -Fvu tank/${virt_type}/${vm}
+$c_ssh "zfs send -R -P -v tank/${virt_type}/${vm}@m0 | $c_mbuffer_send" | $c_mbuffer_recv | zfs recv -Fvu tank/${virt_type}/${vm}
 echo
 echo
 
@@ -154,7 +154,7 @@ zfs set readonly=on tank/${virt_type}/${vm}
 echo "############# Phase1: First increment #############"
 echo
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m1
-$c_ssh "zfs send -R -P -i tank/${virt_type}/${vm}@m0 tank/${virt_type}/${vm}@m1" | zfs recv -vu tank/${virt_type}/${vm}
+$c_ssh "zfs send -R -P -i tank/${virt_type}/${vm}@m0 tank/${virt_type}/${vm}@m1 | $c_mbuffer_send" | $c_mbuffer_recv | zfs recv -vu tank/${virt_type}/${vm}
 echo
 echo
 
@@ -177,7 +177,7 @@ fi
 echo "############# Phase2: Second increment #############"
 echo
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m2
-$c_ssh zfs send -R -P -i tank/${virt_type}/${vm}@m1 tank/${virt_type}/${vm}@m2 | zfs recv -vu tank/${virt_type}/${vm}
+$c_ssh "zfs send -R -P -i tank/${virt_type}/${vm}@m1 tank/${virt_type}/${vm}@m2 | $c_mbuffer_send" | $c_mbuffer_recv | zfs recv -vu tank/${virt_type}/${vm}
 echo
 echo
 
@@ -192,6 +192,19 @@ if [ $virt_type = lxc ];
 fi
 echo
 echo
+
+if [ $virt_type = lxc ];
+	then
+	apparmor_profile=`awk '/^lxc.aa_profile/ { print $3 }' /tank/lxc/${vm}/config`
+	if echo $apparmor_profile |grep -q "lxc-";
+	 then
+		echo "apparmor profile: $apparmor_profile"
+		$c_ssh cat /etc/apparmor.d/lxc/$apparmor_profile > /etc/apparmor.d/lxc/$apparmor_profile
+		/etc/init.d/apparmor restart
+	 else
+		echo "No apparmor profile defines"
+	fi
+fi
 
 # start destination VM
 if [ x$VM_START = "xdest" ];
