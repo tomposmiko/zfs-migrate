@@ -134,7 +134,17 @@ fi
 
 # check for kvm availability
 if [ $virt_type = kvm ]; then
-	$c_ssh "virsh domstate $vm >/dev/null 2>&1" || { echo "No such VM: ${vm}"; exit 1; }
+	#$c_ssh "virsh domstate $vm >/dev/null 2>&1" || { echo "No such VM: ${vm}"; exit 1; }
+	if $c_ssh "virsh domstate $vm >/dev/null 2>&1";
+		then
+			config_xml=`mktemp /tmp/config_vmxml.XXXX`
+			$c_ssh "virsh dumpxml $vm > $config_xml"
+			virsh define $config_xml
+			rm -f $config_xml
+		else
+			echo "No such VM: ${vm}";
+			exit 1;
+	fi
 fi
 
 
@@ -147,7 +157,7 @@ $c_ssh "zfs send -R -P -v tank/${virt_type}/${vm}@m0 | $c_mbuffer_send" | $c_mbu
 echo
 echo
 
-# without ro flag increment send won't work
+# without the ro flag incremental send won't work
 zfs set readonly=on tank/${virt_type}/${vm}
 
 # m1
