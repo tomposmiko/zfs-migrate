@@ -1,8 +1,10 @@
 #!/bin/bash
 
-# TODO
-# check for non-availability of existing VMs (virsh domstate |& lxc-info(?) or /etc/lxc/auto/${vm}.conf)
-# 
+
+f_log(){
+	date=`date "+%Y-%m-%d %T"`
+	echo "$date $HOSTNAME: $*" > $logfile;
+}
 
 f_check_switch_param(){
 	if echo x"$1" |grep -q ^x-;then
@@ -147,8 +149,9 @@ if [ $virt_type = kvm ]; then
 	fi
 fi
 
-
 # m0
+f_log "Starting Phase0: full"
+unixtime_start=`date "+%s"`
 echo "############# Phase0: full #############"
 echo
 $c_ssh zfs destroy -r tank/${virt_type}/${vm}@m0%m2
@@ -161,6 +164,7 @@ echo
 zfs set readonly=on tank/${virt_type}/${vm}
 
 # m1
+f_log "Starting Phase1: First incement"
 echo "############# Phase1: First increment #############"
 echo
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m1
@@ -171,6 +175,7 @@ echo
 ######## STOP ##########
 if [ x$VM_START = "xdest" -o  x$VM_START = "x" ];
 	then
+		f_log "Shutting down VM: $vm"
 		echo "############# Shutting down VM #############"
 		if [ $virt_type = kvm ];
 			then
@@ -180,10 +185,12 @@ if [ x$VM_START = "xdest" -o  x$VM_START = "x" ];
 				$c_ssh lxc-stop -n ${vm}
 		fi
 	else
+		f_log "**** NOT **** SHUTTING DOWN source VM: $vm"
 		echo "############# *** NOT *** shutting down source VM #############"
 fi
 ######## STOP ##########
 
+f_log "Starting Phase2: Second incement"
 echo "############# Phase2: Second increment #############"
 echo
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m2
@@ -191,6 +198,10 @@ $c_ssh "zfs send -R -P -i tank/${virt_type}/${vm}@m1 tank/${virt_type}/${vm}@m2 
 echo
 echo
 
+date >> $logfile
+unixtime_stop=`date "+%s"`
+
+f_log "Finalizing"
 echo "############# Finalizing #############"
 # remove readonly property
 zfs inherit readonly tank/${virt_type}/${vm}
@@ -208,18 +219,21 @@ if [ $virt_type = lxc ];
 	apparmor_profile=`awk '/^lxc.aa_profile/ { print $3 }' /tank/lxc/${vm}/config`
 	if echo $apparmor_profile |grep -q "lxc-";
 	 then
+		f_log "apparmor profile: $apparmor_profile"
 		echo "apparmor profile: $apparmor_profile"
 		$c_ssh cat /etc/apparmor.d/lxc/$apparmor_profile > /etc/apparmor.d/lxc/$apparmor_profile
 		/etc/init.d/apparmor restart
 	 else
-		echo "No apparmor profile defines"
+		f_log "No apparmor profile defined."
+		echo "No apparmor profile defined."
 	fi
 fi
 
 # start destination VM
 if [ x$VM_START = "xdest" ];
 	then
-		echo "############# Starting destination VM #############"
+		f_log "Starting VM on destination host $HOSTNAME"
+		echo "############# Starting VM on destination host $HOSTNAME #############"
 		if [ $virt_type = kvm ];
 			then
 				virsh start ${vm}
@@ -232,5 +246,9 @@ if [ x$VM_START = "xdest" ];
 				$c_ssh sed -i 's@lxc.start.auto@#lxc.start.auto@' /tank/${virt_type}/${vm}/config
 		fi
 	else
+		f_log "**** NOT **** starting destination VM"
 		echo "############# *** NOT *** starting destination VM #############"
 fi
+
+cat $logfile |mail -s "${vm} migration from $s_host to $HOSTNAME" it@chemaxon.com
+rm -f $logfile
