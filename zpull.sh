@@ -231,20 +231,28 @@ echo "############# Finalizing #############"
 zfs inherit readonly tank/${virt_type}/${vm}
 
 # mount dataset if virt type is lxc
+# not good enough, since all datasets have to be mounted recursively
 if [ $virt_type = lxc ];
 	then
-	   zfs mount tank/lxc/${vm}
+		for fs in `zfs list -H tank/lxc/${vm} -r -o name`;do
+			echo "Mounting filesystem: $fs"
+			f_log "Mounting filesystem: $fs"
+			zfs mount $fs
+		done
 fi
 echo
 echo
 
+
+
+# container specific apparmor profile
 if [ $virt_type = lxc ];
 	then
 	apparmor_profile=`awk '/^lxc.aa_profile/ { print $3 }' /tank/lxc/${vm}/config`
 	if echo $apparmor_profile |grep -q "lxc-";
 	 then
-		f_log "apparmor profile: $apparmor_profile"
-		echo "apparmor profile: $apparmor_profile"
+		f_log "Apparmor profile: $apparmor_profile"
+		echo "Apparmor profile: $apparmor_profile"
 		$c_ssh cat /etc/apparmor.d/lxc/$apparmor_profile > /etc/apparmor.d/lxc/$apparmor_profile
 		/etc/init.d/apparmor restart
 	 else
