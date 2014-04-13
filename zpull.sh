@@ -3,7 +3,7 @@
 
 f_log(){
 	date=`date "+%Y-%m-%d %T"`
-	echo "$date $HOSTNAME: $*" > $logfile;
+	echo "$date $HOSTNAME: $*" >> $logfile;
 }
 
 f_check_switch_param(){
@@ -105,9 +105,27 @@ done
 if [ x$virt_type != x"lxc" -a x$virt_type != x"kvm" ];
 	then
 		echo "Invalid or no virtualization type: "$virt_type" !"
+		echo
 		exit 1
 fi
 
+# check for source hostname
+if [ x$s_host = x ];
+	then
+		echo "No source hostname set!"
+		echo
+		exit 1
+	else
+		ssh $s_host echo || { echo "Source host $s_host is not reachable!"; exit 1; }
+fi
+
+# check if VM name set
+if [ x$vm = x ];
+	then
+		echo "No VM name set!"
+		echo
+		exit 1
+fi
 
 # checking if mbuffer is installed
 if ! mbuffer -h >/dev/null 2>&1 ;then
@@ -118,7 +136,6 @@ fi
 c_ssh="ssh -c arcfour $s_host"
 c_mbuffer_send="mbuffer -q -v 0 -s 128k -m 1G"
 c_mbuffer_recv="mbuffer -s 128k -m 1G"
-
 
 # check for remote zfs dataset
 if ! $c_ssh "zfs list tank/${virt_type}/${vm} >/dev/null 2>&1";
@@ -149,6 +166,8 @@ if [ $virt_type = kvm ]; then
 	fi
 fi
 
+logfile=`mktemp /tmp/logfile.XXXX`
+
 # m0
 f_log "Starting Phase0: full"
 unixtime_start=`date "+%s"`
@@ -175,7 +194,7 @@ echo
 ######## STOP ##########
 if [ x$VM_START = "xdest" -o  x$VM_START = "x" ];
 	then
-		f_log "Shutting down VM: $vm"
+		f_log "Shutting down VM"
 		echo "############# Shutting down VM #############"
 		if [ $virt_type = kvm ];
 			then
@@ -198,8 +217,12 @@ $c_ssh "zfs send -R -P -i tank/${virt_type}/${vm}@m1 tank/${virt_type}/${vm}@m2 
 echo
 echo
 
-date >> $logfile
 unixtime_stop=`date "+%s"`
+unixtime_interval_secs=$[${unixtime_stop}-${unixtime_start}]
+unixtime_interval_human=`date -d @${unixtime_interval_secs} +%T`
+echo "ZFS send/receive time: $unixtime_interval_human"
+f_log "ZFS send/receive time: $unixtime_interval_human"
+
 
 f_log "Finalizing"
 echo "############# Finalizing #############"
@@ -224,7 +247,7 @@ if [ $virt_type = lxc ];
 		$c_ssh cat /etc/apparmor.d/lxc/$apparmor_profile > /etc/apparmor.d/lxc/$apparmor_profile
 		/etc/init.d/apparmor restart
 	 else
-		f_log "No apparmor profile defined."
+		f_log "No apparmor profile defined"
 		echo "No apparmor profile defined."
 	fi
 fi
@@ -250,5 +273,6 @@ if [ x$VM_START = "xdest" ];
 		echo "############# *** NOT *** starting destination VM #############"
 fi
 
+f_log "Do not forget to change the backup reference to **** $HOSTNAME ****"
 cat $logfile |mail -s "${vm} migration from $s_host to $HOSTNAME" it@chemaxon.com
 rm -f $logfile
