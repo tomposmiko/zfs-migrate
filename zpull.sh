@@ -219,7 +219,8 @@ echo
 
 unixtime_stop=`date "+%s"`
 unixtime_interval_secs=$[${unixtime_stop}-${unixtime_start}]
-unixtime_interval_human=`date -d @${unixtime_interval_secs} +%T`
+#unixtime_interval_human=`date -d @${unixtime_interval_secs} +%T`
+unixtime_interval_human=`printf %02d:%02d:%02d $((unixtime_interval_secs/3600)) $((unixtime_interval_secs%3600/60)) $((unixtime_interval_secs%60))`
 echo "ZFS send/receive time: $unixtime_interval_human"
 f_log "ZFS send/receive time: $unixtime_interval_human"
 
