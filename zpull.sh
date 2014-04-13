@@ -183,7 +183,7 @@ echo
 zfs set readonly=on tank/${virt_type}/${vm}
 
 # m1
-f_log "Starting Phase1: First incement"
+f_log "Starting Phase1: First increment"
 echo "############# Phase1: First increment #############"
 echo
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m1
@@ -209,7 +209,7 @@ if [ x$VM_START = "xdest" -o  x$VM_START = "x" ];
 fi
 ######## STOP ##########
 
-f_log "Starting Phase2: Second incement"
+f_log "Starting Phase2: Second increment"
 echo "############# Phase2: Second increment #############"
 echo
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m2
