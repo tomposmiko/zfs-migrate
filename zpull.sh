@@ -260,14 +260,25 @@ if [ x$VM_START = "xdest" ];
 		echo "############# Starting VM on destination host $HOSTNAME #############"
 		if [ $virt_type = kvm ];
 			then
+				$c_ssh virsh autostart --disable ${vm}
 				virsh start ${vm}
 				virsh autostart ${vm}
-				$c_ssh virsh autostart --disable ${vm}
+				state=`virsh domstate ${vm} | head -1`
+				if [ "x$state" != "xrunning" ];
+					then
+						f_log "Libvirt VM state is not expected: **** $domstate ****"
+						echo "Libvirt VM state is not expected: **** $domstate ****"
+				fi
 			else
-				lxc-start -d -n ${vm}
-				#ln -s /tank/${virt_type}/${vm}/config /etc/lxc/auto/${vm}.conf
-				sed -i 's@#lxc.start.auto@lxc.start.auto@' /tank/${virt_type}/${vm}/config
 				$c_ssh sed -i 's@lxc.start.auto@#lxc.start.auto@' /tank/${virt_type}/${vm}/config
+				lxc-start -d -n ${vm}
+				sed -i 's@#lxc.start.auto@lxc.start.auto@' /tank/${virt_type}/${vm}/config
+				state=`lxc-info -n archiva|awk '/^State:/ { print $2 }'`
+				if [ "x$state" != "xRUNNING" ];
+					then
+						f_log "LXC container state is not expected: **** $domstate ****"
+						echo "LXC container state is not expected: **** $domstate ****"
+				fi
 		fi
 	else
 		f_log "**** NOT **** starting destination VM"
