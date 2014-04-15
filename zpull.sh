@@ -1,10 +1,18 @@
 #!/bin/bash
 
+<<<<<<< Updated upstream
 
 f_log(){
 	date=`date "+%Y-%m-%d %T"`
 	echo "$date $HOSTNAME: $*" >> $logfile;
 }
+=======
+tempfile=`mktemp /tmp/zpull.XXXX`
+
+echo "CLI: $0 $*" >> $tempfile
+
+
+>>>>>>> Stashed changes
 
 f_check_switch_param(){
 	if echo x"$1" |grep -q ^x-;then
@@ -256,8 +264,12 @@ if [ $virt_type = lxc ];
 		$c_ssh cat /etc/apparmor.d/lxc/$apparmor_profile > /etc/apparmor.d/lxc/$apparmor_profile
 		/etc/init.d/apparmor restart
 	 else
+<<<<<<< Updated upstream
 		f_log "No apparmor profile defined"
 		echo "No apparmor profile defined."
+=======
+		echo "No apparmor profile defined"
+>>>>>>> Stashed changes
 	fi
 fi
 
@@ -293,6 +305,13 @@ if [ x$VM_START = "xdest" ];
 		echo "############# *** NOT *** starting destination VM #############"
 fi
 
+<<<<<<< Updated upstream
 f_log "Do not forget to change the backup reference to **** $HOSTNAME ****"
 cat $logfile |mail -s "${vm} migration from $s_host to $HOSTNAME" it@chemaxon.com
 rm -f $logfile
+=======
+echo |mail -s "`hostname`: ${vm} migration done" root
+
+
+rm -f $tempfile
+>>>>>>> Stashed changes
