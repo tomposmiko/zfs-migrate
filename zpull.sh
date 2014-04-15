@@ -281,7 +281,7 @@ if [ x$VM_START = "xdest" ];
 				$c_ssh sed -i 's@lxc.start.auto@#lxc.start.auto@' /tank/${virt_type}/${vm}/config
 				lxc-start -d -n ${vm}
 				sed -i 's@#lxc.start.auto@lxc.start.auto@' /tank/${virt_type}/${vm}/config
-				state=`lxc-info -n archiva|awk '/^State:/ { print $2 }'`
+				state=`lxc-info -n ${vm}|awk '/^State:/ { print $2 }'`
 				if [ "x$state" != "xRUNNING" ];
 					then
 						f_log "LXC container state is not expected: **** $domstate ****"
