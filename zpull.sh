@@ -1,18 +1,14 @@
 #!/bin/bash
 
-<<<<<<< Updated upstream
 
 f_log(){
 	date=`date "+%Y-%m-%d %T"`
 	echo "$date $HOSTNAME: $*" >> $logfile;
 }
-=======
+
 tempfile=`mktemp /tmp/zpull.XXXX`
 
 echo "CLI: $0 $*" >> $tempfile
-
-
->>>>>>> Stashed changes
 
 f_check_switch_param(){
 	if echo x"$1" |grep -q ^x-;then
