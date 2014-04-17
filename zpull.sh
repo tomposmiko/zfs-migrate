@@ -301,13 +301,11 @@ if [ x$VM_START = "xdest" ];
 		echo "############# *** NOT *** starting destination VM #############"
 fi
 
-<<<<<<< Updated upstream
 f_log "Do not forget to change the backup reference to **** $HOSTNAME ****"
 cat $logfile |mail -s "${vm} migration from $s_host to $HOSTNAME" it@chemaxon.com
 rm -f $logfile
-=======
+
 echo |mail -s "`hostname`: ${vm} migration done" root
 
 
 rm -f $tempfile
->>>>>>> Stashed changes
