@@ -260,12 +260,9 @@ if [ $virt_type = lxc ];
 		$c_ssh cat /etc/apparmor.d/lxc/$apparmor_profile > /etc/apparmor.d/lxc/$apparmor_profile
 		/etc/init.d/apparmor restart
 	 else
-<<<<<<< Updated upstream
 		f_log "No apparmor profile defined"
 		echo "No apparmor profile defined."
-=======
 		echo "No apparmor profile defined"
->>>>>>> Stashed changes
 	fi
 fi
 
