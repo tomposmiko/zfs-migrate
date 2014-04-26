@@ -161,7 +161,7 @@ if [ $virt_type = kvm ]; then
 	if $c_ssh "virsh domstate $vm >/dev/null 2>&1";
 		then
 			config_xml=`mktemp /tmp/config_vmxml.XXXX`
-			$c_ssh "virsh dumpxml $vm > $config_xml"
+			$c_ssh "virsh dumpxml $vm" > $config_xml
 			virsh define $config_xml
 			rm -f $config_xml
 		else
