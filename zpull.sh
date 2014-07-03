@@ -11,7 +11,7 @@ tempfile=`mktemp /tmp/zpull.XXXX`
 echo "CLI: $0 $*" >> $tempfile
 
 f_check_switch_param(){
-	if echo x"$1" |grep -q ^x-;then
+	if echo x"$1" |grep -q ^x$;then
 		echo "Missing argument!"
 		exit 1
 	fi
@@ -36,6 +36,17 @@ f_check_kvm_state() {
 	echo "${vm}: wasn't able to shut down"
 	exit 1
 }
+
+f_zreplicate(){
+	zreplicate -o zfs@${s_host}:tank/${virt_type}/${vm} tank/${virt_type}/${vm} 
+	RET=$?
+	if [ $RET -ne 0 ];then
+		echo "Replication failed, exiting!!!!!"
+		echo | mail -s "Migration failed: ${s_host}:tank/${virt_type}/${vm} => tank/${virt_type}/${vm}" it@chemaxon.com
+		exit 1
+	fi
+}
+
 # make available to subshells and child processes
 export -f f_check_kvm_state
 
@@ -179,7 +190,9 @@ echo "############# Phase0: full #############"
 echo
 $c_ssh zfs destroy -r tank/${virt_type}/${vm}@m0%m2
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m0
-$c_ssh "zfs send -R -P -v tank/${virt_type}/${vm}@m0 | $c_mbuffer_send" | $c_mbuffer_recv | zfs recv -Fvu tank/${virt_type}/${vm}
+#$c_ssh "zfs send -R -P -v tank/${virt_type}/${vm}@m0 | $c_mbuffer_send" | $c_mbuffer_recv | zfs recv -Fvu tank/${virt_type}/${vm}
+zfs create tank/${virt_type}/${vm}
+f_zreplicate
 echo
 echo
 
@@ -191,7 +204,8 @@ f_log "Starting Phase1: First increment"
 echo "############# Phase1: First increment #############"
 echo
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m1
-$c_ssh "zfs send -R -P -i tank/${virt_type}/${vm}@m0 tank/${virt_type}/${vm}@m1 | $c_mbuffer_send" | $c_mbuffer_recv | zfs recv -vu tank/${virt_type}/${vm}
+#$c_ssh "zfs send -R -P -i tank/${virt_type}/${vm}@m0 tank/${virt_type}/${vm}@m1 | $c_mbuffer_send" | $c_mbuffer_recv | zfs recv -vu tank/${virt_type}/${vm}
+f_zreplicate
 echo
 echo
 
@@ -217,7 +231,8 @@ f_log "Starting Phase2: Second increment"
 echo "############# Phase2: Second increment #############"
 echo
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m2
-$c_ssh "zfs send -R -P -i tank/${virt_type}/${vm}@m1 tank/${virt_type}/${vm}@m2 | $c_mbuffer_send" | $c_mbuffer_recv | zfs recv -vu tank/${virt_type}/${vm}
+#$c_ssh "zfs send -R -P -i tank/${virt_type}/${vm}@m1 tank/${virt_type}/${vm}@m2 | $c_mbuffer_send" | $c_mbuffer_recv | zfs recv -vu tank/${virt_type}/${vm}
+f_zreplicate
 echo
 echo
 
