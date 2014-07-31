@@ -1,6 +1,15 @@
 #!/bin/bash
 
-for dataset in `zfs list -t snap -r -H tank -o name |grep ${1}$`;do
-	echo $dataset
-	zfs destroy $dataset
+export PATH="/root/bin:/root/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+datasets=`mktemp /tmp/datasets.XXXXXX`
+zfs list -t snap -r -H tank -o name |grep @ > ${datasets}
+
+for snap in "$@";do
+	for dataset in `grep @.*${snap}.*$ ${datasets}`;do
+		echo ${dataset}
+		zfs destroy ${dataset}
+	done
 done
+
+rm ${datasets}
