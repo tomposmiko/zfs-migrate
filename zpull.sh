@@ -299,10 +299,11 @@ if [ x$VM_START = "xdest" ];
 				fi
 			else
 				$c_ssh sed -i 's@lxc.start.auto@#lxc.start.auto@' /tank/${virt_type}/${vm}/config
+				sleep 2
 				lxc-start -d -n ${vm}
 				sed -i 's@#lxc.start.auto@lxc.start.auto@' /tank/${virt_type}/${vm}/config
-				state=`lxc-info -n ${vm}|awk '/^State:/ { print $2 }'`
-				if [ "x$state" != "xRUNNING" ];
+				sleep 2
+				if ! lxc-wait -t0 -n jay -s RUNNING;
 					then
 						f_log "LXC container state is not expected: **** $domstate ****"
 						echo "LXC container state is not expected: **** $domstate ****"
