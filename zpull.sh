@@ -55,7 +55,7 @@ f_usage(){
 	echo "Usage:"
 	echo
 	echo "Destination host (local):"
-	echo "	zpull -t lxc|kvm -s HOST -n VM [--up]"
+	echo "	zpull -t lxc|kvm -s HOST -n VM [--start source|dest]"
 	echo
 	echo "	   -t|--virt lxc|kvm		   virtualization type: LXC or KVM"
 	echo "	   -s|--source HOST			source host to pull VM from"
