@@ -1,5 +1,5 @@
 #!/bin/bash
-
+#set -x
 
 f_log(){
 	date=`date "+%Y-%m-%d %T"`
@@ -191,7 +191,13 @@ echo
 $c_ssh zfs destroy -r tank/${virt_type}/${vm}@m0%m2
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m0
 #$c_ssh "zfs send -R -P -v tank/${virt_type}/${vm}@m0 | $c_mbuffer_send" | $c_mbuffer_recv | zfs recv -Fvu tank/${virt_type}/${vm}
-zfs create tank/${virt_type}/${vm}
+
+# create destination dataset before replication
+if [ $virt_type = kvm ];then
+	zfs_create_switches="-V 1M -b 128k -s"
+fi
+zfs create $zfs_create_switches tank/${virt_type}/${vm}
+
 f_zreplicate
 echo
 echo
