@@ -303,7 +303,7 @@ if [ x$VM_START = "xdest" ];
 				lxc-start -d -n ${vm}
 				sed -i 's@#lxc.start.auto@lxc.start.auto@' /tank/${virt_type}/${vm}/config
 				sleep 2
-				if ! lxc-wait -t0 -n jay -s RUNNING;
+				if ! lxc-wait -t0 -n ${vm} -s RUNNING;
 					then
 						f_log "LXC container state is not expected: **** $domstate ****"
 						echo "LXC container state is not expected: **** $domstate ****"
