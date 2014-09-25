@@ -256,7 +256,7 @@ if [ $virt_type = lxc ];
 		for fs in `zfs list -H tank/lxc/${vm} -r -o name`;do
 			echo "Mounting filesystem: $fs"
 			f_log "Mounting filesystem: $fs"
-			#zfs mount $fs
+			zfs mount $fs
 		done
 fi
 echo
