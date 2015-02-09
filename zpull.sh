@@ -1,5 +1,23 @@
 #!/bin/bash
 
+# https://github.com/maxtsepkov/bash_colors/blob/master/bash_colors.sh
+uncolorize () { sed -r "s/\x1B\[([0-9]{1,3}((;[0-9]{1,3})*)?)?[m|K]//g" }
+if [[ $- != *i* ]]
+   then
+		say() { echo -ne $1;echo -e $nocolor; }
+		sayn() { echo -ne $1;echo -ne $nocolor; }
+        # Colors, yo!
+        green="\e[1;32m"
+        red="\e[1;31m"
+        blue="\e[1;34m"
+        purple="\e[1;35m"
+        cyan="\e[1;36m"
+        nocolor="\e[0m"
+   else
+        # do nothing
+        say() { true; }
+fi
+
 
 f_log(){
 	date=`date "+%Y-%m-%d %T"`
@@ -12,7 +30,7 @@ echo "CLI: $0 $*" >> $tempfile
 
 f_check_switch_param(){
 	if echo x"$1" |grep -q ^x$;then
-		echo "Missing argument!"
+		say "$red Missing argument!"
 		exit 1
 	fi
 }
@@ -22,18 +40,18 @@ f_check_kvm_state() {
 	SHUTDOWN_MAXWAIT=600
 	echo "Waiting for $SHUTDOWN_MAXWAIT seconds."
 	for sec in `seq $SHUTDOWN_MAXWAIT`;do
-		echo -n "$sec "
+		say "$green $sec"
 
 		if `virsh domstate ${vm} | head -1 | grep -q "shut off"`;
 			then
-				echo "${vm}: successfully shut down"
+				say "${vm}:$green successfully shut down"
 				exit 0
 			else
 				sleep 1
 		fi
 
 	done
-	echo "${vm}: wasn't able to shut down"
+	say "${vm}:$red was not able to shut down"
 	exit 1
 }
 
@@ -41,7 +59,7 @@ f_zreplicate(){
 	zreplicate -o zfs@${s_host}:tank/${virt_type}/${vm} tank/${virt_type}/${vm} 
 	RET=$?
 	if [ $RET -ne 0 ];then
-		echo "Replication failed, exiting!!!!!"
+		say "$red Replication failed, exiting!!!!!"
 		echo | mail -s "Migration failed: ${s_host}:tank/${virt_type}/${vm} => tank/${virt_type}/${vm}" it@chemaxon.com
 		exit 1
 	fi
@@ -119,7 +137,7 @@ done
 # check for virt type
 if [ x$virt_type != x"lxc" -a x$virt_type != x"kvm" ];
 	then
-		echo "Invalid or no virtualization type: "$virt_type" !"
+		say "$red Invalid or no virtualization type: $virt_type !"
 		echo
 		exit 1
 fi
@@ -127,24 +145,24 @@ fi
 # check for source hostname
 if [ x$s_host = x ];
 	then
-		echo "No source hostname set!"
+		say "$red No source hostname set!"
 		echo
 		exit 1
 	else
-		ssh $s_host echo || { echo "Source host $s_host is not reachable!"; exit 1; }
+		ssh $s_host echo || { say "$red Source host $s_host is not reachable!"; exit 1; }
 fi
 
 # check if VM name set
 if [ x$vm = x ];
 	then
-		echo "No VM name set!"
+		say "$red No VM name set!"
 		echo
 		exit 1
 fi
 
 # checking if mbuffer is installed
 if ! mbuffer -h >/dev/null 2>&1 ;then
-	echo "No mbuffer installed!"
+	say "$red No mbuffer installed!"
 	exit 1
 fi
 
@@ -155,14 +173,14 @@ c_mbuffer_recv="mbuffer -s 128k -m 1G"
 # check for remote zfs dataset
 if ! $c_ssh "zfs list tank/${virt_type}/${vm} >/dev/null 2>&1";
 	then
-		echo "No dataset on source server: tank/${virt_type}/${vm} !"
+		say "$red No dataset on source server: tank/${virt_type}/${vm} !"
 		exit 1
 fi
 
 # check for local zfs dataset
 if zfs list tank/${virt_type}/${vm} >/dev/null 2>&1;
 	then
-		echo "Dataset exists on destination server: tank/${virt_type}/${vm}"
+		say "$red Dataset exists on destination server: tank/${virt_type}/${vm}"
 		exit 1
 fi
 
@@ -176,7 +194,7 @@ if [ $virt_type = kvm ]; then
 			virsh define $config_xml
 			rm -f $config_xml
 		else
-			echo "No such VM: ${vm}";
+			say "$red No such VM: ${vm}";
 			exit 1;
 	fi
 fi
@@ -186,7 +204,7 @@ logfile=`mktemp /tmp/logfile.XXXX`
 # m0
 f_log "Starting Phase0: full"
 unixtime_start=`date "+%s"`
-echo "############# Phase0: full #############"
+say "$green ############# Phase0: full #############"
 echo
 $c_ssh zfs destroy -r tank/${virt_type}/${vm}@m0%m2
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m0
@@ -201,7 +219,7 @@ zfs set readonly=on tank/${virt_type}/${vm}
 
 # m1
 f_log "Starting Phase1: First increment"
-echo "############# Phase1: First increment #############"
+say "$green ############# Phase1: First increment #############"
 echo
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m1
 #$c_ssh "zfs send -R -P -i tank/${virt_type}/${vm}@m0 tank/${virt_type}/${vm}@m1 | $c_mbuffer_send" | $c_mbuffer_recv | zfs recv -vu tank/${virt_type}/${vm}
@@ -213,7 +231,7 @@ echo
 if [ x$VM_START = "xdest" -o  x$VM_START = "x" ];
 	then
 		f_log "Shutting down VM"
-		echo "############# Shutting down VM #############"
+		say "$green ############# Shutting down VM #############"
 		if [ $virt_type = kvm ];
 			then
 				$c_ssh virsh shutdown ${vm}
@@ -223,12 +241,12 @@ if [ x$VM_START = "xdest" -o  x$VM_START = "x" ];
 		fi
 	else
 		f_log "**** NOT **** SHUTTING DOWN source VM: $vm"
-		echo "############# *** NOT *** shutting down source VM #############"
+		say "$red ############# *** NOT *** shutting down source VM #############"
 fi
 ######## STOP ##########
 
 f_log "Starting Phase2: Second increment"
-echo "############# Phase2: Second increment #############"
+say "$green ############# Phase2: Second increment #############"
 echo
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m2
 #$c_ssh "zfs send -R -P -i tank/${virt_type}/${vm}@m1 tank/${virt_type}/${vm}@m2 | $c_mbuffer_send" | $c_mbuffer_recv | zfs recv -vu tank/${virt_type}/${vm}
@@ -245,7 +263,7 @@ f_log "ZFS send/receive time: $unixtime_interval_human"
 
 
 f_log "Finalizing"
-echo "############# Finalizing #############"
+say "$green ############# Finalizing #############"
 # remove readonly property
 zfs inherit readonly tank/${virt_type}/${vm}
 
@@ -254,7 +272,7 @@ zfs inherit readonly tank/${virt_type}/${vm}
 if [ $virt_type = lxc ];
 	then
 		for fs in `zfs list -H tank/lxc/${vm} -r -o name`;do
-			echo "Mounting filesystem: $fs"
+			say "$green Mounting filesystem: $fs"
 			f_log "Mounting filesystem: $fs"
 			#zfs mount $fs
 		done
@@ -271,13 +289,12 @@ if [ $virt_type = lxc ];
 	if echo $apparmor_profile |grep -q "lxc-";
 	 then
 		f_log "Apparmor profile: $apparmor_profile"
-		echo "Apparmor profile: $apparmor_profile"
+		say "$green Apparmor profile: $apparmor_profile"
 		$c_ssh cat /etc/apparmor.d/lxc/$apparmor_profile > /etc/apparmor.d/lxc/$apparmor_profile
 		/etc/init.d/apparmor restart
 	 else
 		f_log "No apparmor profile defined"
-		echo "No apparmor profile defined."
-		echo "No apparmor profile defined"
+		say "$green No apparmor profile defined"
 	fi
 fi
 
@@ -285,7 +302,7 @@ fi
 if [ x$VM_START = "xdest" ];
 	then
 		f_log "Starting VM on destination host $HOSTNAME"
-		echo "############# Starting VM on destination host $HOSTNAME #############"
+		say "$green ############# Starting VM on destination host $HOSTNAME #############"
 		if [ $virt_type = kvm ];
 			then
 				$c_ssh virsh autostart --disable ${vm}
@@ -295,7 +312,7 @@ if [ x$VM_START = "xdest" ];
 				if [ "x$state" != "xrunning" ];
 					then
 						f_log "Libvirt VM state is not expected: **** $domstate ****"
-						echo "Libvirt VM state is not expected: **** $domstate ****"
+						say "$red Libvirt VM state is not expected: **** $domstate ****"
 				fi
 			else
 				$c_ssh sed -i 's@lxc.start.auto@#lxc.start.auto@' /tank/${virt_type}/${vm}/config
@@ -305,15 +322,16 @@ if [ x$VM_START = "xdest" ];
 				if [ "x$state" != "xRUNNING" ];
 					then
 						f_log "LXC container state is not expected: **** $domstate ****"
-						echo "LXC container state is not expected: **** $domstate ****"
+						say "$red LXC container state is not expected: **** $domstate ****"
 				fi
 		fi
 	else
 		f_log "**** NOT **** starting destination VM"
-		echo "############# *** NOT *** starting destination VM #############"
+		say "$blue ############# *** NOT *** starting destination VM #############"
 fi
 
 f_log "Do not forget to change the backup reference to **** $HOSTNAME ****"
+say "$blue Do not forget to change the backup reference to **** $HOSTNAME ****"
 cat $logfile |mail -s "${vm} migration from $s_host to $HOSTNAME" it@chemaxon.com
 rm -f $logfile
 
