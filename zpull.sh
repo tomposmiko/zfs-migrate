@@ -1,5 +1,4 @@
 #!/bin/bash
-<<<<<<< HEAD
 
 # https://github.com/maxtsepkov/bash_colors/blob/master/bash_colors.sh
 uncolorize () { sed -r "s/\x1B\[([0-9]{1,3}((;[0-9]{1,3})*)?)?[m|K]//g" }
@@ -18,10 +17,6 @@ if [[ $- != *i* ]]
         # do nothing
         say() { true; }
 fi
-
-=======
-#set -x
->>>>>>> c42dd817a3b09dd3e571b2ca845e7b1c85c33637
 
 f_log(){
 	date=`date "+%Y-%m-%d %T"`
