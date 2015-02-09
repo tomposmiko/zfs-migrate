@@ -37,9 +37,9 @@ f_check_switch_param(){
 
 f_check_kvm_state() {
 	SHUTDOWN_MAXWAIT=600
-	echo "Waiting for $SHUTDOWN_MAXWAIT seconds."
+	say "$green Waiting for $SHUTDOWN_MAXWAIT seconds."
 	for sec in `seq $SHUTDOWN_MAXWAIT`;do
-		say "$green $sec"
+		say "$blue $sec"
 
 		if `virsh domstate ${vm} | head -1 | grep -q "shut off"`;
 			then
@@ -263,7 +263,7 @@ unixtime_stop=`date "+%s"`
 unixtime_interval_secs=$[${unixtime_stop}-${unixtime_start}]
 #unixtime_interval_human=`date -d @${unixtime_interval_secs} +%T`
 unixtime_interval_human=`printf %02d:%02d:%02d $((unixtime_interval_secs/3600)) $((unixtime_interval_secs%3600/60)) $((unixtime_interval_secs%60))`
-echo "ZFS send/receive time: $unixtime_interval_human"
+say "$green ZFS send/receive time: $unixtime_interval_human"
 f_log "ZFS send/receive time: $unixtime_interval_human"
 
 
