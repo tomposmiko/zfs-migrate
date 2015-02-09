@@ -1,4 +1,5 @@
 #!/bin/bash
+<<<<<<< HEAD
 
 # https://github.com/maxtsepkov/bash_colors/blob/master/bash_colors.sh
 uncolorize () { sed -r "s/\x1B\[([0-9]{1,3}((;[0-9]{1,3})*)?)?[m|K]//g" }
@@ -18,6 +19,9 @@ if [[ $- != *i* ]]
         say() { true; }
 fi
 
+=======
+#set -x
+>>>>>>> c42dd817a3b09dd3e571b2ca845e7b1c85c33637
 
 f_log(){
 	date=`date "+%Y-%m-%d %T"`
@@ -73,7 +77,7 @@ f_usage(){
 	echo "Usage:"
 	echo
 	echo "Destination host (local):"
-	echo "	zpull -t lxc|kvm -s HOST -n VM [--up]"
+	echo "	zpull -t lxc|kvm -s HOST -n VM [--start source|dest]"
 	echo
 	echo "	   -t|--virt lxc|kvm		   virtualization type: LXC or KVM"
 	echo "	   -s|--source HOST			source host to pull VM from"
@@ -209,7 +213,13 @@ echo
 $c_ssh zfs destroy -r tank/${virt_type}/${vm}@m0%m2
 $c_ssh zfs snap -r tank/${virt_type}/${vm}@m0
 #$c_ssh "zfs send -R -P -v tank/${virt_type}/${vm}@m0 | $c_mbuffer_send" | $c_mbuffer_recv | zfs recv -Fvu tank/${virt_type}/${vm}
-zfs create tank/${virt_type}/${vm}
+
+# create destination dataset before replication
+if [ $virt_type = kvm ];then
+	zfs_create_switches="-V 1M -b 128k -s"
+fi
+zfs create $zfs_create_switches tank/${virt_type}/${vm}
+
 f_zreplicate
 echo
 echo
@@ -274,7 +284,7 @@ if [ $virt_type = lxc ];
 		for fs in `zfs list -H tank/lxc/${vm} -r -o name`;do
 			say "$green Mounting filesystem: $fs"
 			f_log "Mounting filesystem: $fs"
-			#zfs mount $fs
+			zfs mount $fs
 		done
 fi
 echo
@@ -316,10 +326,11 @@ if [ x$VM_START = "xdest" ];
 				fi
 			else
 				$c_ssh sed -i 's@lxc.start.auto@#lxc.start.auto@' /tank/${virt_type}/${vm}/config
+				sleep 2
 				lxc-start -d -n ${vm}
 				sed -i 's@#lxc.start.auto@lxc.start.auto@' /tank/${virt_type}/${vm}/config
-				state=`lxc-info -n ${vm}|awk '/^State:/ { print $2 }'`
-				if [ "x$state" != "xRUNNING" ];
+				sleep 2
+				if ! lxc-wait -t0 -n ${vm} -s RUNNING;
 					then
 						f_log "LXC container state is not expected: **** $domstate ****"
 						say "$red LXC container state is not expected: **** $domstate ****"
