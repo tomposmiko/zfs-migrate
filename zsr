@@ -1,5 +1,22 @@
 #!/bin/bash
 
+# https://github.com/maxtsepkov/bash_colors/blob/master/bash_colors.sh
+
+if [[ $- != *i* ]]
+   then say() { echo -ne $1;echo -e $nocolor; }
+		# Colors, yo!
+		green="\e[1;32m"
+		red="\e[1;31m"
+		blue="\e[1;34m"
+		purple="\e[1;35m"
+		cyan="\e[1;36m"
+		nocolor="\e[0m"
+   else
+		# do nothing
+		say() { true; }
+fi
+
+
 export PATH="/root/bin:/root/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 datasets=`mktemp /tmp/datasets.XXXXXX`
@@ -7,7 +24,7 @@ zfs list -t snap -r -H tank -o name |grep @ > ${datasets}
 
 for snap in "$@";do
 	for dataset in `grep @.*${snap}.*$ ${datasets}`;do
-		echo ${dataset}
+		say "$green ${dataset}"
 		zfs destroy ${dataset}
 	done
 done
