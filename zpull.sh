@@ -141,17 +141,7 @@ if [ x$virt_type != x"lxc" -a x$virt_type != x"kvm" ];
 		exit 1
 fi
 
-# check for source hostname
-if [ x$s_host = x ];
-	then
-		say "$red No source hostname set!"
-		echo
-		exit 1
-	else
-		ssh $s_host echo || { say "$red Source host $s_host is not reachable!"; exit 1; }
-fi
-
-# check if VM name set
+# check if VM name is set
 if [ x$vm = x ];
 	then
 		say "$red No VM name set!"
@@ -165,9 +155,27 @@ if ! mbuffer -h >/dev/null 2>&1 ;then
 	exit 1
 fi
 
-c_ssh="ssh -c arcfour $s_host"
+# ssh tuning
+# https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Security_Guide/sect-Security_Guide-Encryption-OpenSSL_Intel_AES-NI_Engine.html
+if `grep -m1 -w -o aes /proc/cpuinfo` == "aes";
+	then
+		ssh_opts="-c aes128-cbc"
+fi
+
+c_ssh="ssh $ssh_opts $s_host"
 c_mbuffer_send="mbuffer -q -v 0 -s 128k -m 1G"
 c_mbuffer_recv="mbuffer -s 128k -m 1G"
+
+# check for source hostname
+if [ x$s_host = x ];
+    then
+        say "$red No source hostname set!"
+        echo
+        exit 1
+    else
+        ssh $s_host echo || { say "$red Source host $s_host is not reachable!"; exit 1; }
+fi
+
 
 # check for remote zfs dataset
 if ! $c_ssh "zfs list tank/${virt_type}/${vm} >/dev/null 2>&1";
