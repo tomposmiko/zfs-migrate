@@ -55,7 +55,7 @@ f_check_kvm_state() {
 }
 
 f_zreplicate(){
-	zreplicate -o zfs@${s_host}:tank/${virt_type}/${vm} tank/${virt_type}/${vm} 
+	zreplicate $ssh_opts -o zfs@${s_host}:tank/${virt_type}/${vm} tank/${virt_type}/${vm} 
 	RET=$?
 	if [ $RET -ne 0 ];then
 		say "$red Replication failed, exiting!!!!!"
@@ -159,10 +159,10 @@ fi
 # https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Security_Guide/sect-Security_Guide-Encryption-OpenSSL_Intel_AES-NI_Engine.html
 if `grep -m1 -w -o aes /proc/cpuinfo` == "aes";
 	then
-		ssh_opts="-c aes128-cbc"
+		ssh_opts="--ssh-cipher=aes128-cbc"
 fi
 
-c_ssh="ssh $ssh_opts $s_host"
+c_ssh="ssh $s_host"
 c_mbuffer_send="mbuffer -q -v 0 -s 128k -m 1G"
 c_mbuffer_recv="mbuffer -s 128k -m 1G"
 
