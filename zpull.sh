@@ -157,7 +157,7 @@ fi
 
 # ssh tuning
 # https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Security_Guide/sect-Security_Guide-Encryption-OpenSSL_Intel_AES-NI_Engine.html
-if `grep -m1 -w -o aes /proc/cpuinfo` == "aes";
+if [ x`grep -m1 -w -o aes /proc/cpuinfo` == "xaes" ];
 	then
 		ssh_opts="--ssh-cipher=aes128-cbc"
 fi
