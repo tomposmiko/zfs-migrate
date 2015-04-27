@@ -19,14 +19,14 @@ fi
 
 export PATH="/root/bin:/root/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-datasets=`mktemp /tmp/datasets.XXXXXX`
-zfs list -t snap -r -H tank -o name |grep @ > ${datasets}
+dataset_list=`mktemp /tmp/datasets.XXXXXX`
+zfs list -t snap -r -H tank -o name -s name |grep @ > ${dataset_list}
 
 for snap in "$@";do
-	for dataset in `grep @.*${snap}.*$ ${datasets}`;do
+	for dataset in `grep @.*${snap}.*$ ${dataset_list}`;do
 		say "$green ${dataset}"
 		zfs destroy ${dataset}
 	done
 done
 
-rm ${datasets}
+rm ${dataset_list}
