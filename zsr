@@ -1,8 +1,14 @@
 #!/bin/bash
 
+interactive=0
+if /usr/bin/tty > /dev/null;
+    then
+        interactive=1
+fi
+
 # https://github.com/maxtsepkov/bash_colors/blob/master/bash_colors.sh
 uncolorize () { sed -r "s/\x1B\[([0-9]{1,3}((;[0-9]{1,3})*)?)?[m|K]//g"; }
-if [[ $- != *i* ]]
+if [ $interactive -eq 1 ]
    then say() { echo -ne $1;echo -e $nocolor; }
 		# Colors, yo!
 		green="\e[1;32m"
