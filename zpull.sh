@@ -4,7 +4,7 @@
 uncolorize () { sed -r "s/\x1B\[([0-9]{1,3}((;[0-9]{1,3})*)?)?[m|K]//g"; }
 if [[ $- != *i* ]]
    then
-		say() { echo -ne $1;echo -e $nocolor; }
+		say() { echo -ne "$1";echo -e $nocolor; }
 		sayn() { echo -ne $1;echo -ne $nocolor; }
         # Colors, yo!
         green="\e[1;32m"
